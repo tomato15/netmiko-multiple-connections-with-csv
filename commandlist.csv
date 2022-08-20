@@ -1,5 +1,3 @@
 Command
 show version
-traceroute 203.50.13.89 routing-instance GIN_AS2914-VRF as-number-lookup
-traceroute 203.50.13.89 routing-instance KDDI_AS2516-VRF as-number-lookup
-traceroute 203.50.13.89 routing-instance SOFTBANK_AS17676-VRF as-number-lookup
+show ip route
