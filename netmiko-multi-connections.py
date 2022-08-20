@@ -88,22 +88,25 @@ if __name__ == '__main__':
             conn.disconnect()
 
         except netmiko.NetMikoAuthenticationException:
-            print(f'SSH authentication error: {hinfo[0]}\n')
+            message = f'SSH authentication error: {hinfo[0]}\n'
+            print(message)
             logname = f'{hinfo[0]}-{dt_now}-JST-SSHAuthenticationError.log'
             with open(logname, 'a') as f:
-                f.write(output)
+                f.write(message)
 
         except netmiko.NetMikoTimeoutException:
-            print(f'SSH timeout error: {hinfo[0]}\n')
+            message = f'SSH timeout error: {hinfo[0]}\n'
+            print(message)
             logname = f'{hinfo[0]}-{dt_now}-JST-SSHTimeoutError.log'
             with open(logname, 'a') as f:
-                f.write(output)
+                f.write(message)
 
         except:
-            print(f'Error: Fail to perform commands: {hinfo[0]}\n')
+            message = f'Error: Fail to perform commands: {hinfo[0]}\n'
+            print(message)
             logname = f'{hinfo[0]}-{dt_now}-JST-SendCommandError.log'
             with open(logname, 'a') as f:
-                f.write(output)
+                f.write(message)
 
 
 
