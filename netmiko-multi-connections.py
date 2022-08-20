@@ -4,7 +4,7 @@ import netmiko
 from netmiko.ssh_autodetect import SSHDetect
 from netmiko.ssh_dispatcher import ConnectHandler
 import csv
-import datetime
+import datetime as dt
 
 
 
@@ -53,8 +53,7 @@ class NetmikoOperator:
                         'password': hostinfo[2]}
 
         guesser = SSHDetect(**remote_device)
-        guess_type = guesser.autodetect()        
-        remote_device['device_type'] = guess_type
+        remote_device['device_type'] = guesser.autodetect()
         connection = ConnectHandler(**remote_device)
         return connection 
 
@@ -70,7 +69,7 @@ if __name__ == '__main__':
 
     for hinfo in hlist:
         output = ''
-        dt_now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))).strftime('%Y%m%d-%H%M%S')
+        dt_now = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime('%Y%m%d-%H%M%S')
         logname = f'{hinfo[0]}-{dt_now}-JST.log'
 
         try:
