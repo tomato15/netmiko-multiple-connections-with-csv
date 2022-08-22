@@ -7,8 +7,8 @@ from netmiko.ssh_dispatcher import ConnectHandler
 
 
 
-HOSTLIST = 'netmiko-multi-connections-with-hostlist-commandlist/hostlist.csv'
-COMMANDLIST = 'netmiko-multi-connections-with-hostlist-commandlist/commandlist.csv'
+HOSTLIST = 'netmiko-multiple-connections-with-csv/hostlist.csv'
+COMMANDLIST = 'netmiko-multiple-connections-with-csv/commandlist.csv'
 
 
 
