@@ -68,7 +68,7 @@ class NetmikoOperator:
         with open(logfile, 'a') as f:
             f.write(message)
 
-    def multi_conn(self, hostlist, commandlist):
+    def multi_connections(self, hostlist, commandlist):
         for hinfo in hostlist:
             output = ''
             logfile = self.create_loginfo(**hinfo)
@@ -103,7 +103,7 @@ def main():
     clist = csv_ope.read_commandlist()
 
     netmiko_ope = NetmikoOperator()
-    netmiko_ope.multi_conn(hlist, clist)
+    netmiko_ope.multi_connections(hlist, clist)
 
 
 
