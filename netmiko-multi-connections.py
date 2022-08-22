@@ -34,8 +34,6 @@ class CSVOperator:
             with open(csv_file, 'r') as f:
                 csv_reader = csv.reader(f)
                 commandlist = list(csv_reader)
-                print(commandlist)
-
                 del commandlist[0]
                 return commandlist
         except IOError:
