@@ -6,8 +6,6 @@ from netmiko.ssh_autodetect import SSHDetect
 from netmiko.ssh_dispatcher import ConnectHandler
 
 
-# send_commandのところ綺麗にする
-# print(command) find_promptいれるとJUNOSではping、tracerouteできない
 
 HOSTLIST = 'netmiko-multi-connections-with-hostlist-commandlist/hostlist.csv'
 COMMANDLIST = 'netmiko-multi-connections-with-hostlist-commandlist/commandlist.csv'
@@ -100,6 +98,7 @@ class NetmikoOperator:
                 self.notify_except('PerformCommandErros', logfile, **hinfo)
 
 
+
 def main():
     csv_ope = CSVOperator()
     hlist = csv_ope.read_hostlist()
@@ -107,6 +106,7 @@ def main():
 
     netmiko_ope = NetmikoOperator()
     netmiko_ope.multi_conn(hlist, clist)
+
 
 
 if __name__ == '__main__':
