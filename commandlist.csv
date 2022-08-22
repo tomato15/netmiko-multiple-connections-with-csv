@@ -1,3 +1,4 @@
-Command
+command
 show version
 show ip route
+ping 8.8.8.8
