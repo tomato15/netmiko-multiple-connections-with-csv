@@ -1,15 +1,16 @@
-#! python3.6
-#! netmiko==4.0.0
+import csv
+import datetime as dt
+import os
 import netmiko
 from netmiko.ssh_autodetect import SSHDetect
 from netmiko.ssh_dispatcher import ConnectHandler
-import csv
-import datetime as dt
 
 
+# send_commandのところ綺麗にする
+# print(command) find_promptいれるとJUNOSではping、tracerouteできない
 
-HOSTLIST = 'hostlist.csv'
-COMMANDLIST = 'commandlist.csv'
+HOSTLIST = 'netmiko-multi-connections-with-hostlist-commandlist/hostlist.csv'
+COMMANDLIST = 'netmiko-multi-connections-with-hostlist-commandlist/commandlist.csv'
 
 
 
@@ -21,9 +22,8 @@ class CSVOperator:
 
         try:
             with open(csv_file, 'r') as f:
-                csv_reader = csv.reader(f)
-                hostlist = list(csv_reader)
-                del hostlist[0]
+                hostdict = csv.DictReader(f)
+                hostlist = list(hostdict)
                 return hostlist
         except IOError:
             print(f'I/O error: {csv_file}')
@@ -36,6 +36,8 @@ class CSVOperator:
             with open(csv_file, 'r') as f:
                 csv_reader = csv.reader(f)
                 commandlist = list(csv_reader)
+                print(commandlist)
+
                 del commandlist[0]
                 return commandlist
         except IOError:
@@ -46,67 +48,66 @@ class CSVOperator:
 class NetmikoOperator:
 
     def connect_autodetect(self, hostinfo):
-
         remote_device = {'device_type': 'autodetect',
-                        'host': hostinfo[0],
-                        'username': hostinfo[1],
-                        'password': hostinfo[2]}
-
-        guesser = SSHDetect(**remote_device)
-        remote_device['device_type'] = guesser.autodetect()
+                        'host': hostinfo.get("host"),
+                        'username': hostinfo.get("username"),
+                        'password': hostinfo.get("password")}        
+        detector = SSHDetect(**remote_device)
+        remote_device['device_type'] = detector.autodetect()
         connection = ConnectHandler(**remote_device)
         return connection 
 
+    def create_loginfo(self, **hinfo):
+        dt_now = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime('%Y%m%d-%H%M%S')
+        dir = f'log-{dt_now}'
+        if not (os.path.exists(dir)):
+            os.mkdir(dir)
+        logfile = f'{dir}/{hinfo.get("host")}-{dt_now}-JST.log'
+        return logfile
+
+    def notify_except(self, keyword, logfile, **hinfo):
+        message = f'{keyword}: {hinfo.get("host")}\n'
+        print(message)
+        logfile = logfile.rstrip('.log') + f'-{keyword}.log'
+        with open(logfile, 'a') as f:
+            f.write(message)
+
+    def multi_conn(self, hostlist, commandlist):
+        for hinfo in hostlist:
+            output = ''
+            logfile = self.create_loginfo(**hinfo)
+
+            try:
+                conn = self.connect_autodetect(hinfo)
+
+                for command in commandlist:
+                    output += conn.find_prompt() + command[0] + '\n'
+                    output += conn.send_command(command[0]) + '\n'
+                    print(output)
+                
+                with open(logfile, 'a') as f:
+                    f.write(output)
+
+                conn.disconnect()
+
+            except netmiko.NetMikoAuthenticationException:
+                self.notify_except('SSHAuthenticationError', logfile, **hinfo)
+
+            except netmiko.NetMikoTimeoutException:
+                self.notify_except('SSHTimeoutError', logfile, **hinfo)
+
+            except:
+                self.notify_except('PerformCommandErros', logfile, **hinfo)
 
 
-if __name__ == '__main__':
-
+def main():
     csv_ope = CSVOperator()
     hlist = csv_ope.read_hostlist()
     clist = csv_ope.read_commandlist()
 
     netmiko_ope = NetmikoOperator()
-
-    for hinfo in hlist:
-        output = ''
-        dt_now = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime('%Y%m%d-%H%M%S')
-        logname = f'{hinfo[0]}-{dt_now}-JST.log'
-
-        try:
-            conn = netmiko_ope.connect_autodetect(hinfo)
-
-            for command in clist:
-                # print(command) find_promptいれるとping、tracerouteできない
-                # output += conn.find_prompt() + command[0] + '\n'
-                # print(output)
-                output += conn.send_command(command[0]) 
-                print(output)
-            
-            with open(logname, 'a') as f:
-                f.write(output)
-
-            conn.disconnect()
-
-        except netmiko.NetMikoAuthenticationException:
-            message = f'SSH authentication error: {hinfo[0]}\n'
-            print(message)
-            logname = f'{hinfo[0]}-{dt_now}-JST-SSHAuthenticationError.log'
-            with open(logname, 'a') as f:
-                f.write(message)
-
-        except netmiko.NetMikoTimeoutException:
-            message = f'SSH timeout error: {hinfo[0]}\n'
-            print(message)
-            logname = f'{hinfo[0]}-{dt_now}-JST-SSHTimeoutError.log'
-            with open(logname, 'a') as f:
-                f.write(message)
-
-        except:
-            message = f'Error: Fail to perform commands: {hinfo[0]}\n'
-            print(message)
-            logname = f'{hinfo[0]}-{dt_now}-JST-SendCommandError.log'
-            with open(logname, 'a') as f:
-                f.write(message)
+    netmiko_ope.multi_conn(hlist, clist)
 
 
-
+if __name__ == '__main__':
+    main()
