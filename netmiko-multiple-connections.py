@@ -7,12 +7,13 @@ from netmiko.ssh_dispatcher import ConnectHandler
 
 
 
-HOSTLIST = 'netmiko-multiple-connections-with-csv/hostlist.csv'
-COMMANDLIST = 'netmiko-multiple-connections-with-csv/commandlist.csv'
+HOSTLIST = 'hostlist.csv'
+COMMANDLIST = 'commandlist.csv'
 
 
 
 class CSVOperator:
+
 
     def read_hostlist(self, csv_file = None):
         if not csv_file:
@@ -23,8 +24,10 @@ class CSVOperator:
                 hostdict = csv.DictReader(f)
                 hostlist = list(hostdict)
                 return hostlist
+
         except IOError:
-            print(f'I/O error: {csv_file}')
+            print(f'I/O error: {csv_file}\n')
+
 
     def read_commandlist(self, csv_file = None):
         if not csv_file:
@@ -36,64 +39,67 @@ class CSVOperator:
                 commandlist = list(csv_reader)
                 del commandlist[0]
                 return commandlist
+
         except IOError:
-            print(f'I/O error: {csv_file}')
+            print(f'I/O error: {csv_file}\n')
 
 
 
 class NetmikoOperator:
 
-    def connect_autodetect(self, hostinfo):
+
+    def connect_autodetect(self, hostinfo, loginfo):
         remote_device = {'device_type': 'autodetect',
                         'host': hostinfo.get("host"),
                         'username': hostinfo.get("username"),
-                        'password': hostinfo.get("password")}        
+                        'password': hostinfo.get("password"),
+                        'session_log': loginfo}
         detector = SSHDetect(**remote_device)
         remote_device['device_type'] = detector.autodetect()
         connection = ConnectHandler(**remote_device)
         return connection 
 
-    def create_loginfo(self, **hinfo):
-        dt_now = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime('%Y%m%d-%H%M%S')
-        dir = f'log-{dt_now}'
+
+    def make_loginfo(self, timeinfo, **hinfo):
+        dir = f'log-{timeinfo}'
         if not (os.path.exists(dir)):
             os.mkdir(dir)
-        logfile = f'{dir}/{hinfo.get("host")}-{dt_now}-JST.log'
-        return logfile
+        loginfo = f'{dir}/{hinfo.get("host")}-{timeinfo}-JST.log'
+        return loginfo
 
-    def notify_except(self, keyword, logfile, **hinfo):
-        message = f'{keyword}: {hinfo.get("host")}\n'
-        print(message)
-        logfile = logfile.rstrip('.log') + f'-{keyword}.log'
-        with open(logfile, 'a') as f:
-            f.write(message)
+
+    def notify_except(self, keyword, exception, loginfo, **hinfo):
+        msg_str = f'{keyword}: {hinfo.get("host")}\n'
+        print(f'{"="*60}\n {exception}\n {msg_str}\n')
+        loginfo_error = loginfo.rstrip('.log') + f'-{keyword}.log'
+        os.rename(loginfo, loginfo_error)
+
 
     def multi_connections(self, hostlist, commandlist):
+        dt_now = dt.datetime.now(dt.timezone(dt.timedelta(hours=9))).strftime('%Y%m%d-%H%M%S')
+
         for hinfo in hostlist:
-            output = ''
-            logfile = self.create_loginfo(**hinfo)
+            loginfo = self.make_loginfo(dt_now, **hinfo)
 
             try:
-                conn = self.connect_autodetect(hinfo)
+                conn = self.connect_autodetect(hinfo, loginfo)
 
                 for command in commandlist:
+                    output = ''
                     output += conn.find_prompt() + command[0] + '\n'
                     output += conn.send_command(command[0]) + '\n'
-                    print(output)
+                    print(f'{"="*60}\n {output}\n')
                 
-                with open(logfile, 'a') as f:
-                    f.write(output)
-
                 conn.disconnect()
 
-            except netmiko.NetMikoAuthenticationException:
-                self.notify_except('SSHAuthenticationError', logfile, **hinfo)
+            except netmiko.NetMikoAuthenticationException as e:
+                self.notify_except('SSHAuthenticationError', e, loginfo, **hinfo)
 
-            except netmiko.NetMikoTimeoutException:
-                self.notify_except('SSHTimeoutError', logfile, **hinfo)
+            except netmiko.NetMikoTimeoutException as e:
+                self.notify_except('SSHTimeoutError', e, loginfo, **hinfo)
 
-            except:
-                self.notify_except('PerformCommandErros', logfile, **hinfo)
+            except Exception as e:
+                self.notify_except('PerformCommandErros', e, loginfo, **hinfo)
 
 
 
