@@ -118,19 +118,19 @@ class NetmikoOperator:
                 conn.disconnect()
 
             except netmiko.NetMikoAuthenticationException as e:
-                self.logger.error(f'SSHAuthenticationError: {hinfo.get("host")}\n')
+                self.logger.error(f'SSHAuthenticationError: {conn.host}\n')
                 self.rename_logfile('SSHAuthenticationError', loginfo)
 
             except netmiko.NetMikoTimeoutException as e:
-                self.logger.error(f'SSHTimeoutError: {hinfo.get("host")}\n')
+                self.logger.error(f'SSHTimeoutError: {conn.host}\n')
                 self.rename_logfile('SSHTimeoutError', loginfo)
 
             except Exception as e:
-                self.logger.error(f'Error: {hinfo.get("host")}\n')
+                self.logger.error(f'Error: {conn.host}\n')
                 self.rename_logfile('Error', loginfo)
 
             else:
-                self.logger.info(f'SuccessfullyDone: {hinfo.get("host")}\n')
+                self.logger.info(f'SuccessfullyDone: {conn.host}\n')
 
 
 
