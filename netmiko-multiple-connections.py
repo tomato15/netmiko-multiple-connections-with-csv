@@ -1,7 +1,9 @@
+import os
 import csv
 import datetime as dt
-import os
+from logging import getLogger, StreamHandler, Formatter, DEBUG
 import netmiko
+from netmiko import utilities as netutil
 from netmiko.ssh_autodetect import SSHDetect
 from netmiko.ssh_dispatcher import ConnectHandler
 
@@ -13,7 +15,6 @@ COMMANDLIST = 'commandlist.csv'
 
 
 class CSVOperator:
-
 
     def read_hostlist(self, csv_file = None):
         if not csv_file:
@@ -48,6 +49,24 @@ class CSVOperator:
 class NetmikoOperator:
 
 
+    def __init__(self):
+        self.logger = self.setup_logger()
+
+
+    def setup_logger(self):
+        logger = getLogger(__name__)
+        logger.setLevel(DEBUG)
+
+        sh = StreamHandler()
+        sh.setLevel(DEBUG)
+        sh_formatter = Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s', '%Y-%m-%d %H:%M:%S')
+        sh.setFormatter(sh_formatter)
+
+        logger.addHandler(sh)
+        logger.propagate = False
+        return logger
+
+
     def connect_autodetect(self, hostinfo, loginfo):
         remote_device = {'device_type': 'autodetect',
                         'host': hostinfo.get("host"),
@@ -60,19 +79,31 @@ class NetmikoOperator:
         return connection 
 
 
+    def make_logdir(self, timeinfo):
+        logdir = f'log-{timeinfo}'
+        netutil.ensure_dir_exists(logdir)
+        return logdir
+
+
     def make_loginfo(self, timeinfo, **hinfo):
-        dir = f'log-{timeinfo}'
-        if not (os.path.exists(dir)):
-            os.mkdir(dir)
+        dir = self.make_logdir(timeinfo)
         loginfo = f'{dir}/{hinfo.get("host")}-{timeinfo}-JST.log'
         return loginfo
 
 
-    def notify_except(self, keyword, exception, loginfo, **hinfo):
-        msg_str = f'{keyword}: {hinfo.get("host")}\n'
-        print(f'{"="*60}\n {exception}\n {msg_str}\n')
-        loginfo_error = loginfo.rstrip('.log') + f'-{keyword}.log'
-        os.rename(loginfo, loginfo_error)
+    def rename_logfile(self, key, loginfo):
+        loginfo_renamed = loginfo.rstrip('.log') + f'-{key}.log'
+        os.rename(loginfo, loginfo_renamed)
+
+
+    def multi_send_command(self, conn, commandlist):
+        for command in commandlist:
+            print(f'{"="*30} {command[0]} @{conn.host} {"="*30}')
+            output = ''
+            output += conn.find_prompt() + command[0] + '\n'
+            output += conn.send_command(command[0]) + '\n'            
+            print(output)
+        return output
 
 
     def multi_connections(self, hostlist, commandlist):
@@ -83,23 +114,23 @@ class NetmikoOperator:
 
             try:
                 conn = self.connect_autodetect(hinfo, loginfo)
-
-                for command in commandlist:
-                    output = ''
-                    output += conn.find_prompt() + command[0] + '\n'
-                    output += conn.send_command(command[0]) + '\n'
-                    print(f'{"="*60}\n {output}\n')
-                
+                self.multi_send_command(conn, commandlist)                
                 conn.disconnect()
 
             except netmiko.NetMikoAuthenticationException as e:
-                self.notify_except('SSHAuthenticationError', e, loginfo, **hinfo)
+                self.logger.error(f'SSHAuthenticationError: {hinfo.get("host")}\n')
+                self.rename_logfile('SSHAuthenticationError', loginfo)
 
             except netmiko.NetMikoTimeoutException as e:
-                self.notify_except('SSHTimeoutError', e, loginfo, **hinfo)
+                self.logger.error(f'SSHTimeoutError: {hinfo.get("host")}\n')
+                self.rename_logfile('SSHTimeoutError', loginfo)
 
             except Exception as e:
-                self.notify_except('PerformCommandErros', e, loginfo, **hinfo)
+                self.logger.error(f'Error: {hinfo.get("host")}\n')
+                self.rename_logfile('Error', loginfo)
+
+            else:
+                self.logger.info(f'SuccessfullyDone: {hinfo.get("host")}\n')
 
 
 
@@ -110,7 +141,6 @@ def main():
 
     netmiko_ope = NetmikoOperator()
     netmiko_ope.multi_connections(hlist, clist)
-
 
 
 if __name__ == '__main__':
