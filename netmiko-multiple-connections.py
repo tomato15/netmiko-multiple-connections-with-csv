@@ -99,26 +99,38 @@ class NetmikoOperator:
         loginfo_renamed = loginfo.rstrip('.log') + f'-{key}.log'
         os.rename(loginfo, loginfo_renamed)
 
-    def ping_check(self, target_ip: str) -> None:
+    def ping_check(self, host: str) -> None:
         try:
-            ping.ping(target_ip, timeout=0.5)
+            ping.ping(host, timeout=0.5)
+
         except ping.errors.Timeout:
             error_msg = 'PingTimeout'
-            self.logger.error(f'{error_msg}: {target_ip}')
+            self.logger.error(f'{error_msg}: {host}')
+
         except ping.errors.TimeToLiveExpired:
             error_msg = 'PingTTLExpired'
-            self.logger.error(f'{error_msg}: {target_ip}')
+            self.logger.error(f'{error_msg}: {host}')
+
         except ping.errors.PingError:
             error_msg = 'PingUnreachable'
-            self.logger.error(f'{error_msg}: {target_ip}')
+            self.logger.error(f'{error_msg}: {host}')
+
         except PermissionError:
-            error_msg = 'PermissionError; Your OS requires root permission to send ICMP packets'
+            error_msg = 'PermissionError; OS requires root permission to send ICMP packets'
             self.logger.error(f'{error_msg}')
-        except Exception:
-            self.logger.error(f'Error: {target_ip}')
+
+        except Exception as e:
+            self.logger.error(f'Error: {host}')
+            self.logger.debug(e)
+
         else:
             success_msg = 'PingSuccess'
-            self.logger.info(f'{success_msg}: {target_ip}')
+            self.logger.info(f'{success_msg}: {host}')
+
+    def wrapper_except_proccess(self, host: str, error_msg: str, loginfo: str) -> None:
+        self.ping_check(host)
+        self.logger.error(f'{error_msg}: {host}\n')
+        self.rename_logfile(error_msg, loginfo)
 
     def multi_send_command(self, conn: Callable, commandlist: List[List[str]]) -> str:
         conn.enable()
@@ -137,6 +149,7 @@ class NetmikoOperator:
 
         for hinfo in hostlist:
             loginfo = self.make_loginfo(dt_now, **hinfo)
+            host = hinfo.get("host")
 
             try:
                 conn = self.connect_autodetect(hinfo, loginfo)
@@ -144,28 +157,21 @@ class NetmikoOperator:
                 conn.disconnect()
 
             except netmiko.NetMikoAuthenticationException:
-                self.ping_check(hinfo.get("host"))
                 error_msg = 'SSHAuthenticationError'
-                self.logger.error(f'{error_msg}: {hinfo.get("host")}\n')
-                self.rename_logfile(error_msg, loginfo)
+                self.wrapper_except_proccess(host, error_msg, loginfo)
 
             except netmiko.NetMikoTimeoutException:
-                self.ping_check(hinfo.get("host"))
                 error_msg = 'SSHTimeoutError'
-                self.logger.error(f'{error_msg}: {hinfo.get("host")}\n')
-                self.rename_logfile(error_msg, loginfo)
+                self.wrapper_except_proccess(host, error_msg, loginfo)
 
             except netmiko.ReadTimeout:
-                self.ping_check(hinfo.get("host"))
                 error_msg = 'ReadTimeout or CommandMismatch'
-                self.logger.error(f'{error_msg}: {hinfo.get("host")}\n')
-                self.rename_logfile(error_msg, loginfo)
+                self.wrapper_except_proccess(host, error_msg, loginfo)
 
-            except Exception:
-                self.ping_check(hinfo.get("host"))
+            except Exception as e:
                 error_msg = 'Error'
-                self.logger.error(f'{error_msg}: {hinfo.get("host")}\n')
-                self.rename_logfile(error_msg, loginfo)
+                self.wrapper_except_proccess(host, error_msg, loginfo)
+                self.logger.error(e)
 
             else:
                 success_msg = 'SuccessfullyDone'
