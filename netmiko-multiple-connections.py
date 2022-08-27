@@ -116,8 +116,8 @@ class NetmikoOperator:
         except Exception:
             self.logger.error(f'Error: {target_ip}')
         else:
-            msg = 'PingSuccess'
-            self.logger.info(f'{msg}: {target_ip}')
+            success_msg = 'PingSuccess'
+            self.logger.info(f'{success_msg}: {target_ip}')
 
     def multi_send_command(self, conn: Callable, commandlist: List[List[str]]) -> str:
         conn.enable()
