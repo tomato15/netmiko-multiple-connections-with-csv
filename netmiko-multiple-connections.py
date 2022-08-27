@@ -80,7 +80,6 @@ class NetmikoOperator:
                          'password': hostinfo.get("password"),
                          'secret': hostinfo.get("secret"),
                          'session_log': loginfo}
-        self.logger.debug(remote_device)
         detector = SSHDetect(**remote_device)
         remote_device['device_type'] = detector.autodetect()
         connection = ConnectHandler(**remote_device)
@@ -102,7 +101,6 @@ class NetmikoOperator:
 
     def ping_check(self, target_ip: str) -> None:
         try:
-            # TODO linuxで実験
             ping.ping(target_ip, timeout=0.5)
         except ping.errors.Timeout:
             error_msg = 'PingTimeout'
@@ -113,6 +111,9 @@ class NetmikoOperator:
         except ping.errors.PingError:
             error_msg = 'PingUnreachable'
             self.logger.error(f'{error_msg}: {target_ip}')
+        except PermissionError:
+            error_msg = 'PermissionError; Your OS requires root permission to send ICMP packets'
+            self.logger.error(f'{error_msg}')
         except Exception:
             self.logger.error(f'Error: {target_ip}')
         else:
@@ -125,9 +126,7 @@ class NetmikoOperator:
             conn.enable()
             print(f'{"="*30} {command[0]} @{conn.host} {"="*30}')
             output = ''
-            output += conn.send_command(command[0],
-                                        strip_prompt=False,
-                                        strip_command=False) + '\n'
+            output += conn.send_command(command[0], strip_prompt=False, strip_command=False) + '\n'
             print(output)
             print(f'{"="*80}\n')
         return output
@@ -155,6 +154,13 @@ class NetmikoOperator:
                 error_msg = 'SSHTimeoutError'
                 self.logger.error(f'{error_msg}: {hinfo.get("host")}\n')
                 self.rename_logfile(error_msg, loginfo)
+
+            except netmiko.ReadTimeout:
+                self.ping_check(hinfo.get("host"))
+                error_msg = 'ReadTimeout or CommandMismatch'
+                self.logger.error(f'{error_msg}: {hinfo.get("host")}\n')
+                self.rename_logfile(error_msg, loginfo)
+                continue
 
             except Exception:
                 self.ping_check(hinfo.get("host"))
