@@ -160,7 +160,6 @@ class NetmikoOperator:
                 error_msg = 'ReadTimeout or CommandMismatch'
                 self.logger.error(f'{error_msg}: {hinfo.get("host")}\n')
                 self.rename_logfile(error_msg, loginfo)
-                continue
 
             except Exception:
                 self.ping_check(hinfo.get("host"))
