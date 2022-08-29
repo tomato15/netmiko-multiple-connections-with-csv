@@ -174,7 +174,7 @@ class NetmikoOperator:
 
             else:
                 success_msg = 'SuccessfullyDone'
-                self.logger.info(f'{success_msg}: {hinfo.get("host")}\n')
+                self.logger.info(f'{success_msg}: {host}\n')
 
 
 def main():
