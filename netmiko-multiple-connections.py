@@ -135,7 +135,6 @@ class NetmikoOperator:
     def multi_send_command(self, conn: Callable, commandlist: List[List[str]]) -> str:
         conn.enable()
         for command in commandlist:
-            conn.enable()
             print(f'{"="*30} {command[0]} @{conn.host} {"="*30}')
             output = ''
             output += conn.send_command(command[0], strip_prompt=False, strip_command=False) + '\n'
